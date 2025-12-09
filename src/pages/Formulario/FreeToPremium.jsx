@@ -82,6 +82,8 @@ const FreeToPremium = () => {
     if (status === 'approved' && !showModal) {
       // Ejecutar el upgrade automáticamente
       handleUpgradeAPI();
+    } else if (status === 'failure' || status === 'rejected') {
+      setError('El pago no se pudo completar. Por favor, intenta nuevamente o utiliza otro medio de pago.');
     }
   }, [status]);
 
