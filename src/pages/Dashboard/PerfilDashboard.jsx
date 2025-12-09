@@ -1,5 +1,5 @@
 import { useState, useContext, useMemo, useEffect } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useLocation } from "react-router";
 import {
   Star,
   X,
@@ -93,6 +93,49 @@ const PerfilDashboard = () => {
     };
     fetchAvailableTechs();
   }, [BASE_URL]);
+
+  // Hook 7: Verificar estado del pago al volver de MercadoPago
+  const location = useLocation();
+  useEffect(() => {
+    const checkPaymentStatus = async () => {
+      const params = new URLSearchParams(location.search);
+      const status = params.get("status");
+
+      if (status === "approved" && user) {
+        // Caso 1: Usuario paga y aún no tiene el rol actualizado en el frontend
+        if (user.plan !== "premium") {
+          try {
+            // Forzamos actualización por si el webhook no ha llegado o estamos en localhost
+            const response = await axios.post(
+              `${BASE_URL}/api/users/upgrade-premium`,
+              { plan: "premium" },
+              { headers: { Authorization: `Bearer ${token}` } }
+            );
+
+            // Actualizamos el contexto
+            setUser(response.data);
+            showSuccess("¡Pago exitoso! Ahora eres usuario Premium.");
+
+          } catch (error) {
+            console.error("Error confirmando premium:", error);
+            // Puede que el webhook ya lo haya actualizado y por eso falle (si hay lógica de idempotencia)
+            // O puede ser un error real.
+          }
+        } else {
+          // Caso 2: El usuario ya es premium (quizás el webhook fue rápido o refrescó)
+          // Solo mostramos mensaje de éxito si venimos con el param status
+          showSuccess("¡Tu suscripción Premium está activa!");
+        }
+
+        // Limpiar la URL para evitar re-ejecuciones
+        navigate("/dashboard", { replace: true });
+      }
+    };
+
+    if (user && token) {
+      checkPaymentStatus();
+    }
+  }, [location, user, token, BASE_URL, navigate, setUser, showSuccess]);
 
   // 4. Lógica de Filtrado (Hook 5: useMemo)
   const filteredTechs = useMemo(() => {
